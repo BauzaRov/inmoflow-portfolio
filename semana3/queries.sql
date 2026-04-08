@@ -57,3 +57,95 @@ JOIN contrato c ON pg.id_contrato = c.id_contrato
 JOIN propiedad p ON c.id_propiedad = p.id_propiedad
 JOIN inquilino i ON c.id_inquilino = i.id_inquilino
 ORDER BY pg.fecha_vencimiento;
+
+
+-- Reporte 1: Resumen de cartera por estado
+SELECT 
+    estado,
+    COUNT(*) AS cantidad,
+    ROUND(AVG(precio_alquiler), 0) AS precio_promedio,
+    MIN(precio_alquiler) AS precio_minimo,
+    MAX(precio_alquiler) AS precio_maximo
+FROM propiedad
+GROUP BY estado
+ORDER BY cantidad DESC;
+
+INSERT INTO inquilino (nombre, apellido, dni, email, telefono, ocupacion) VALUES
+  ('Carolina', 'Méndez', '40222333', 'caro.mendez@gmail.com', '1133330001', 'Empleada en relación de dependencia');
+
+INSERT INTO scoring_inquilino (id_inquilino, puntaje, nivel, tiene_garantia, tiene_recibo, fecha_evaluacion, id_agente) VALUES
+  (3, 91, 'alto', TRUE, TRUE, '2025-03-20', 1);
+  
+-- Reporte 2: Inquilinos con scoring alto sin contrato activo
+SELECT 
+    i.nombre || ' ' || i.apellido AS inquilino,
+    i.email,
+    i.telefono,
+    s.puntaje,
+    s.nivel,
+    s.tiene_garantia
+FROM inquilino i
+JOIN scoring_inquilino s ON i.id_inquilino = s.id_inquilino
+WHERE s.nivel = 'alto'
+AND i.id_inquilino NOT IN (
+    SELECT id_inquilino 
+    FROM contrato 
+    WHERE estado = 'activo'
+);
+
+-- Reporte 3: Pagos vencidos con días de atraso
+SELECT 
+    i.nombre || ' ' || i.apellido AS inquilino,
+    p.direccion,
+    pg.fecha_vencimiento,
+    CURRENT_DATE - pg.fecha_vencimiento AS dias_de_atraso,
+    pg.monto,
+    CASE 
+        WHEN CURRENT_DATE - pg.fecha_vencimiento > 30 THEN 'crítico'
+        WHEN CURRENT_DATE - pg.fecha_vencimiento > 10 THEN 'moderado'
+        ELSE 'leve'
+    END AS nivel_alerta
+FROM pago pg
+JOIN contrato c ON pg.id_contrato = c.id_contrato
+JOIN propiedad p ON c.id_propiedad = p.id_propiedad
+JOIN inquilino i ON c.id_inquilino = i.id_inquilino
+WHERE pg.fecha_pago IS NULL
+AND pg.fecha_vencimiento < CURRENT_DATE
+ORDER BY dias_de_atraso DESC;
+
+-- Reporte 4: Ranking de agentes por propiedades gestionadas
+SELECT 
+    a.nombre || ' ' || a.apellido AS agente,
+    COUNT(p.id_propiedad) AS total_propiedades,
+    SUM(CASE WHEN p.estado = 'disponible' THEN 1 ELSE 0 END) AS disponibles,
+    SUM(CASE WHEN p.estado = 'alquilada' THEN 1 ELSE 0 END) AS alquiladas,
+    ROUND(AVG(p.precio_alquiler), 0) AS precio_promedio
+FROM agente a
+LEFT JOIN propiedad p ON a.id_agente = p.id_agente
+GROUP BY a.id_agente, a.nombre, a.apellido
+ORDER BY total_propiedades DESC;
+
+-- Reporte 5: Vista de contratos activos
+CREATE VIEW v_contratos_activos AS
+SELECT 
+    c.id_contrato,
+    i.nombre || ' ' || i.apellido AS inquilino,
+    i.email,
+    i.telefono,
+    p.direccion,
+    p.barrio,
+    a.nombre || ' ' || a.apellido AS agente,
+    c.fecha_inicio,
+    c.fecha_fin,
+    c.monto_mensual,
+    s.puntaje AS scoring_inquilino,
+    s.nivel AS nivel_scoring
+FROM contrato c
+JOIN inquilino i ON c.id_inquilino = i.id_inquilino
+JOIN propiedad p ON c.id_propiedad = p.id_propiedad
+JOIN agente a ON p.id_agente = a.id_agente
+LEFT JOIN scoring_inquilino s ON i.id_inquilino = s.id_inquilino
+WHERE c.estado = 'activo';
+
+-- Consultar la vista
+SELECT * FROM v_contratos_activos;
