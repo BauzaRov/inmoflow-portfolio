@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>InmoFlow — Panel de gestión</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = 'https://qyjjcplooezvxdqscgzl.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_WKXVUrHiLR5iCSnFBVmqSQ_oHdIwoLe';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
 
@@ -518,6 +524,101 @@ function showScreen(name, navEl) {
   document.getElementById('screen-' + name).classList.add('active');
   if (navEl) navEl.classList.add('active');
   document.querySelector('.main').scrollTop = 0;
+  if (name === 'propiedades') cargarPropiedades();
+  if (name === 'inquilinos') cargarInquilinos();
+  if (name === 'pagos') cargarPagosVencidos();
+}
+
+window.onload = () => cargarPropiedades();
+async function cargarPropiedades() {
+  const { data, error } = await sb.from('propiedad').select('*');
+  if (error) { console.error(error); return; }
+  
+  const grid = document.querySelector('#screen-propiedades .grid-props');
+  if (!grid) return;
+  
+  grid.innerHTML = data.map(p => {
+    const estadoBadge = p.estado === 'disponible' ? '<span class="badge b-green">Disponible</span>' :
+                        p.estado === 'alquilada'   ? '<span class="badge b-dark">Alquilada</span>' :
+                                                     '<span class="badge b-amber">Reservada</span>';
+    const botones = p.estado === 'disponible' ? `
+      <button class="btn-sm gris">Ver detalle</button>
+      <button class="btn-sm negro">Agendar visita</button>
+      <button class="btn-sm rojo">Asignar contrato</button>` :
+      `<button class="btn-sm gris">Ver detalle</button>
+      <button class="btn-sm negro" onclick="showScreen('contratos', document.querySelector('[onclick*=contratos]'))">Ver contrato</button>`;
+    
+    return `
+      <div class="prop-card">
+        <div class="prop-img" style="background:#1a1a1a">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg>
+          <div class="prop-estado">${estadoBadge}</div>
+        </div>
+        <div class="prop-body">
+          <div class="prop-tipo">${p.tipo} · ${p.ambientes} amb.</div>
+          <div class="prop-dir">${p.direccion}</div>
+          <div class="prop-barrio">${p.barrio} · ${p.superficie_m2} m²</div>
+          <div class="prop-precio">$${Number(p.precio_alquiler).toLocaleString('es-AR')} <span>/mes</span></div>
+          <div class="prop-meta"><span><strong>${p.ambientes}</strong> amb.</span><span><strong>${p.superficie_m2}</strong> m²</span></div>
+          <div class="prop-actions">${botones}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function cargarInquilinos() {
+  const { data, error } = await sb.from('inquilino').select('*, scoring_inquilino(*)');
+  if (error) { console.error(error); return; }
+  
+  const tbody = document.querySelector('#screen-inquilinos table tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = data.map(i => {
+    const s = i.scoring_inquilino?.[0];
+    const puntaje = s ? s.puntaje : '—';
+    const nivel = s ? s.nivel : 'sin evaluar';
+    const garantia = s ? (s.tiene_garantia ? '<span class="badge b-green">Sí</span>' : '<span class="badge b-red">No</span>') : '—';
+    const pct = s ? s.puntaje : 0;
+    const iniciales = (i.nombre[0] + i.apellido[0]).toUpperCase();
+    return `
+      <tr>
+        <td><div style="width:28px;height:28px;border-radius:50%;background:#111;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#C9A84C">${iniciales}</div></td>
+        <td><strong>${i.nombre} ${i.apellido}</strong><br><span style="font-size:10px;color:#888">${i.email || ''}</span></td>
+        <td style="color:#888;font-family:'DM Mono',monospace">${i.dni}</td>
+        <td style="color:#888">${i.ocupacion || ''}</td>
+        <td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:${pct}%"></div></div><span style="font-size:12px;font-weight:500">${puntaje}</span></div></td>
+        <td>${garantia}</td>
+        <td><span class="badge b-gray">${nivel}</span></td>
+        <td><button class="btn-sm gris">Ver →</button></td>
+      </tr>`;
+  }).join('');
+}
+
+async function cargarPagosVencidos() {
+  const { data, error } = await sb
+    .from('pago')
+    .select('*, contrato(*, propiedad(*), inquilino(*))')
+    .is('fecha_pago', null)
+    .lt('fecha_vencimiento', new Date().toISOString().split('T')[0]);
+  if (error) { console.error(error); return; }
+
+  const tbody = document.querySelector('#screen-pagos table tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = data.map(p => {
+    const dias = Math.floor((new Date() - new Date(p.fecha_vencimiento)) / 86400000);
+    const alerta = dias > 30 ? '<span class="badge b-red">Crítico</span>' : '<span class="badge b-amber">Moderado</span>';
+    return `
+      <tr class="vencido">
+        <td><strong>${p.contrato.inquilino.nombre} ${p.contrato.inquilino.apellido}</strong></td>
+        <td style="color:#888">${p.contrato.propiedad.direccion}</td>
+        <td style="color:#888">${p.fecha_vencimiento}</td>
+        <td style="font-family:'DM Mono',monospace">$${Number(p.monto).toLocaleString('es-AR')}</td>
+        <td style="color:#C0392B;font-weight:500">${dias} días</td>
+        <td>${alerta}</td>
+        <td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm dorado">Cobrar</button></div></td>
+      </tr>`;
+  }).join('');
 }
 </script>
 </body>
