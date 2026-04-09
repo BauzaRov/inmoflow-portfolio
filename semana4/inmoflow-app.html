@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>InmoFlow — Panel de gestión</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --negro: #111111; --negro-2: #1C1C1C; --negro-3: #282828; --negro-4: #333;
+  --rojo: #C0392B; --rojo-light: #F5E6E4; --rojo-mid: #E04030;
+  --dorado: #C9A84C; --dorado-light: #F9F3E3; --dorado-mid: #E8C96A;
+  --blanco: #F5F5F5; --muted: #888; --borde-l: #E8E8E8; --borde-d: rgba(255,255,255,0.08);
+  --verde: #2E7D32;
+}
+body { font-family: 'DM Sans', sans-serif; background: #EFEFEF; display: flex; height: 100vh; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar { width: 220px; background: var(--negro); display: flex; flex-direction: column; flex-shrink: 0; }
+.logo-wrap { padding: 22px 20px; border-bottom: 0.5px solid var(--borde-d); }
+.logo { font-size: 20px; font-weight: 500; color: var(--blanco); letter-spacing: -0.02em; }
+.logo span { color: var(--dorado); }
+.logo-sub { font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: 0.1em; text-transform: uppercase; }
+.nav-section { padding: 16px 0 6px; }
+.nav-label { font-size: 9px; color: #555; text-transform: uppercase; letter-spacing: 0.1em; padding: 0 20px; margin-bottom: 4px; font-weight: 500; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; color: var(--muted); cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s; user-select: none; }
+.nav-item:hover { color: var(--blanco); background: var(--negro-2); }
+.nav-item.active { color: var(--dorado); background: var(--negro-2); border-left-color: var(--dorado); font-weight: 500; }
+.nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 0.5px solid var(--borde-d); display: flex; align-items: center; gap: 10px; }
+.s-av { width: 32px; height: 32px; border-radius: 50%; background: var(--negro-3); border: 1.5px solid var(--dorado); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: var(--dorado); flex-shrink: 0; }
+.s-name { font-size: 12px; color: var(--blanco); font-weight: 500; }
+.s-role { font-size: 10px; color: var(--muted); }
+
+/* MAIN */
+.main { flex: 1; overflow-y: auto; padding: 28px; min-width: 0; }
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* TOPBAR */
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.topbar-title { font-size: 22px; font-weight: 500; color: var(--negro); letter-spacing: -0.02em; }
+.topbar-sub { font-size: 13px; color: #666; margin-top: 3px; }
+.btn-primary { background: var(--rojo); color: #fff; border: none; border-radius: 7px; font-size: 13px; padding: 8px 16px; cursor: pointer; font-weight: 500; font-family: 'DM Sans', sans-serif; transition: background 0.15s; }
+.btn-primary:hover { background: var(--rojo-mid); }
+
+/* METRICS */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+.metric { background: #fff; border: 0.5px solid var(--borde-l); border-radius: 10px; padding: 16px; border-top: 3px solid var(--borde-l); }
+.metric.ar { border-top-color: var(--rojo); }
+.metric.ag { border-top-color: var(--dorado); }
+.metric.an { border-top-color: var(--negro); }
+.metric.av { border-top-color: var(--verde); }
+.metric-label { font-size: 10px; color: #999; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+.metric-value { font-size: 26px; font-weight: 500; color: var(--negro); letter-spacing: -0.02em; font-family: 'DM Mono', monospace; }
+.metric-sub { font-size: 11px; margin-top: 4px; color: #999; }
+.metric-sub.danger { color: var(--rojo); }
+.metric-sub.gold { color: var(--dorado); }
+.metric-sub.green { color: var(--verde); }
+
+/* CARDS */
+.card { background: #fff; border: 0.5px solid var(--borde-l); border-radius: 10px; padding: 18px; }
+.card-title { font-size: 13px; font-weight: 500; color: var(--negro); margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.card-link { font-size: 12px; color: var(--rojo); font-weight: 400; cursor: pointer; }
+.card-link:hover { text-decoration: underline; }
+
+/* GRID LAYOUTS */
+.grid2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid-side { display: grid; grid-template-columns: 1fr 280px; gap: 16px; }
+.grid-side-sm { display: grid; grid-template-columns: 1fr 260px; gap: 16px; }
+
+/* TABLE */
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; color: #aaa; font-weight: 500; padding: 0 8px 10px 0; border-bottom: 0.5px solid var(--borde-l); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+td { padding: 10px 8px 10px 0; border-bottom: 0.5px solid var(--borde-l); color: var(--negro); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr.vencido td { background: #FFF8F7; }
+
+/* BADGES */
+.badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 10px; font-weight: 500; }
+.b-green { background: #EAF3DE; color: #2E6B10; }
+.b-amber { background: var(--dorado-light); color: #7A5800; }
+.b-red { background: var(--rojo-light); color: var(--rojo); }
+.b-gray { background: #F0F0F0; color: #666; }
+.b-dark { background: var(--negro); color: var(--dorado); }
+
+/* BUTTONS */
+.acciones { display: flex; gap: 5px; flex-wrap: wrap; }
+.btn-sm { font-size: 11px; padding: 4px 10px; border-radius: 5px; cursor: pointer; border: none; font-weight: 500; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+.btn-sm.gris { background: #E4E4E4; color: #222; }
+.btn-sm.negro { background: #111111; color: #ffffff; }
+.btn-sm.rojo { background: #C0392B; color: #ffffff; }
+.btn-sm.verde { background: #2E7D32; color: #ffffff; }
+.btn-sm.dorado { background: #C9A84C; color: #111111; }
+
+/* FILTERS */
+.filter-bar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+.filter-bar input, .filter-bar select { font-size: 12px; padding: 6px 10px; border: 0.5px solid var(--borde-l); border-radius: 6px; background: #fafafa; color: var(--negro); font-family: 'DM Sans', sans-serif; }
+.filter-bar input { flex: 1; min-width: 150px; }
+.btn-search { background: #111; color: var(--dorado); border: none; border-radius: 6px; font-size: 12px; padding: 6px 14px; cursor: pointer; font-weight: 500; font-family: 'DM Sans', sans-serif; }
+
+/* SCORE BAR */
+.score-wrap { display: flex; align-items: center; gap: 8px; }
+.score-bar { height: 4px; border-radius: 2px; width: 70px; background: #eee; }
+.score-fill { height: 4px; border-radius: 2px; background: var(--dorado); }
+
+/* VISITA AGENDA */
+.agenda-item { display: flex; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 6px; border: 0.5px solid var(--borde-l); background: #fafafa; }
+.agenda-item.confirmada { border-left: 3px solid var(--verde); }
+.agenda-item.pendiente { border-left: 3px solid var(--dorado); }
+.agenda-hora { font-size: 12px; font-weight: 500; color: var(--rojo); min-width: 44px; font-family: 'DM Mono', monospace; }
+.agenda-info { flex: 1; }
+.agenda-nombre { font-size: 12px; font-weight: 500; color: var(--negro); }
+.agenda-dir { font-size: 10px; color: var(--muted); margin-top: 1px; }
+.agenda-acciones { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.agenda-dia-label { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 12px 0 8px; padding-bottom: 6px; border-bottom: 0.5px solid var(--borde-l); }
+
+/* PROP CARDS */
+.grid-props { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.prop-card { background: #fff; border: 0.5px solid var(--borde-l); border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
+.prop-card:hover { border-color: var(--dorado); }
+.prop-img { height: 100px; background: var(--negro-2); display: flex; align-items: center; justify-content: center; position: relative; }
+.prop-img svg { opacity: 0.12; }
+.prop-estado { position: absolute; top: 8px; right: 8px; }
+.prop-body { padding: 12px; }
+.prop-tipo { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.prop-dir { font-size: 13px; font-weight: 500; color: var(--negro); }
+.prop-barrio { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.prop-precio { font-size: 16px; font-weight: 500; color: var(--negro); font-family: 'DM Mono', monospace; }
+.prop-precio span { font-size: 11px; color: var(--muted); font-weight: 400; font-family: 'DM Sans', sans-serif; }
+.prop-meta { display: flex; gap: 12px; margin-top: 8px; padding-top: 8px; border-top: 0.5px solid var(--borde-l); font-size: 11px; color: var(--muted); }
+.prop-actions { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+
+/* INQUILINOS DETAIL */
+.detail-avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--negro); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 500; color: var(--dorado); border: 2px solid var(--dorado); flex-shrink: 0; }
+.scoring-box { background: var(--negro); border-radius: 8px; padding: 14px; margin-bottom: 12px; }
+.scoring-title { font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.scoring-score { font-size: 40px; font-weight: 500; color: var(--dorado); line-height: 1; font-family: 'DM Mono', monospace; }
+.scoring-level { font-size: 12px; color: #ccc; margin-top: 4px; }
+.scoring-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #666; margin-top: 8px; }
+.scoring-track { height: 3px; border-radius: 2px; background: #222; flex: 1; margin: 0 8px; }
+.scoring-fill { height: 3px; border-radius: 2px; background: var(--dorado); }
+.field-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 0.5px solid var(--borde-l); font-size: 12px; }
+.field-row:last-child { border-bottom: none; }
+.field-label { color: #999; }
+.field-value { font-weight: 500; color: var(--negro); }
+
+/* PAGOS */
+.alerta-box { background: #FFF0EE; border-left: 3px solid var(--rojo); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; }
+.alerta-titulo { font-size: 11px; font-weight: 500; color: var(--rojo); margin-bottom: 3px; }
+.alerta-texto { font-size: 11px; color: #666; }
+.progress-track { height: 6px; border-radius: 3px; background: #eee; margin-top: 10px; }
+.progress-fill { height: 6px; border-radius: 3px; background: var(--dorado); }
+.resumen-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 0.5px solid var(--borde-l); font-size: 12px; }
+.resumen-row:last-child { border-bottom: none; }
+
+/* CONTRATOS progress */
+.prog-wrap { display: flex; align-items: center; gap: 8px; }
+.prog-bar { height: 4px; border-radius: 2px; background: #eee; width: 80px; }
+.prog-fill { height: 4px; border-radius: 2px; }
+.section-label { font-size: 10px; font-weight: 500; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; margin-top: 14px; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo-wrap">
+    <div class="logo">Inmo<span>Flow</span></div>
+    <div class="logo-sub">Panel de gestión</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Principal</div>
+    <div class="nav-item active" onclick="showScreen('dashboard', this)">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="showScreen('propiedades', this)">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M8 1L1 6v9h5v-4h4v4h5V6L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      Propiedades
+    </div>
+    <div class="nav-item" onclick="showScreen('inquilinos', this)">
+      <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Inquilinos
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Operaciones</div>
+    <div class="nav-item" onclick="showScreen('visitas', this)">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="14" height="12" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 1v4M11 1v4M1 7h14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Visitas
+    </div>
+    <div class="nav-item" onclick="showScreen('contratos', this)">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M3 1h7l3 3v11H3V1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 1v3h3M5 7h6M5 10h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      Contratos
+    </div>
+    <div class="nav-item" onclick="showScreen('pagos', this)">
+      <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="14" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M1 7h14" stroke="currentColor" stroke-width="1.2"/><circle cx="5" cy="10.5" r="1" fill="currentColor"/></svg>
+      Pagos
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <div class="s-av">LF</div>
+    <div><div class="s-name">Lucía Fernández</div><div class="s-role">Agente</div></div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div class="screen active" id="screen-dashboard">
+    <div class="topbar">
+      <div><div class="topbar-title">Buenos días, Lucía</div><div class="topbar-sub">Lunes 7 de abril · 9:15 hs</div></div>
+      <button class="btn-primary" onclick="showScreen('propiedades', document.querySelector('[onclick*=propiedades]'))">+ Nueva propiedad</button>
+    </div>
+    <div class="metrics">
+      <div class="metric an"><div class="metric-label">Propiedades activas</div><div class="metric-value">12</div><div class="metric-sub">8 disponibles · 4 alquiladas</div></div>
+      <div class="metric ag"><div class="metric-label">Visitas esta semana</div><div class="metric-value">5</div><div class="metric-sub gold">3 confirmadas · 2 pendientes</div></div>
+      <div class="metric an"><div class="metric-label">Contratos activos</div><div class="metric-value">4</div><div class="metric-sub">1 vence en 30 días</div></div>
+      <div class="metric ar"><div class="metric-label">Pagos vencidos</div><div class="metric-value" style="color:#C0392B">3</div><div class="metric-sub danger">$810.000 pendiente</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-title">Pagos vencidos <span class="card-link" onclick="showScreen('pagos', document.querySelector('[onclick*=pagos]'))">Ver todos →</span></div>
+        <table>
+          <thead><tr><th>Inquilino</th><th>Propiedad</th><th>Vencimiento</th><th>Monto</th><th>Atraso</th></tr></thead>
+          <tbody>
+            <tr class="vencido"><td>Valentina López</td><td style="color:#888">Triunvirato 3200</td><td style="color:#888">10/03/2025</td><td style="font-family:'DM Mono',monospace">$270.000</td><td><span class="badge b-red">394 días</span></td></tr>
+            <tr class="vencido"><td>Jorge Méndez</td><td style="color:#888">Melián 1800</td><td style="color:#888">01/03/2025</td><td style="font-family:'DM Mono',monospace">$320.000</td><td><span class="badge b-red">403 días</span></td></tr>
+            <tr class="vencido"><td>Ana Gómez</td><td style="color:#888">Balbín 4100</td><td style="color:#888">15/03/2025</td><td style="font-family:'DM Mono',monospace">$220.000</td><td><span class="badge b-amber">389 días</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Visitas de hoy <span class="card-link" onclick="showScreen('visitas', document.querySelector('[onclick*=visitas]'))">Ver agenda →</span></div>
+        <div class="agenda-item confirmada"><div class="agenda-hora">10:00</div><div class="agenda-info"><div class="agenda-nombre">Carolina Méndez</div><div class="agenda-dir">Melián 2450 3°B · Saavedra</div></div><span class="badge b-green">Confirmada</span></div>
+        <div class="agenda-item pendiente"><div class="agenda-hora">12:30</div><div class="agenda-info"><div class="agenda-nombre">Martín Suárez</div><div class="agenda-dir">Balbín 4100 PH · Saavedra</div></div><span class="badge b-amber">Pendiente</span></div>
+        <div class="agenda-item confirmada"><div class="agenda-hora">17:00</div><div class="agenda-info"><div class="agenda-nombre">Laura Ríos</div><div class="agenda-dir">Melián 2450 3°B · Saavedra</div></div><span class="badge b-green">Confirmada</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Candidatos con scoring alto sin contrato <span class="card-link" onclick="showScreen('inquilinos', document.querySelector('[onclick*=inquilinos]'))">Ver todos →</span></div>
+      <table>
+        <thead><tr><th>Inquilino</th><th>Ocupación</th><th>Puntaje</th><th>Garantía</th><th>Recibo</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>Carolina Méndez</td><td style="color:#888">Relación de dependencia</td><td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:91%"></div></div><span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">91</span></div></td><td><span class="badge b-green">Sí</span></td><td><span class="badge b-green">Sí</span></td><td><button class="btn-sm dorado" onclick="showScreen('contratos', document.querySelector('[onclick*=contratos]'))">Asignar contrato</button></td></tr>
+          <tr><td>Roberto Paz</td><td style="color:#888">Monotributista</td><td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:78%"></div></div><span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">78</span></div></td><td><span class="badge b-green">Sí</span></td><td><span class="badge b-amber">No</span></td><td><button class="btn-sm dorado" onclick="showScreen('contratos', document.querySelector('[onclick*=contratos]'))">Asignar contrato</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PROPIEDADES -->
+  <div class="screen" id="screen-propiedades">
+    <div class="topbar">
+      <div><div class="topbar-title">Propiedades</div><div class="topbar-sub">12 propiedades · 8 disponibles · 4 alquiladas</div></div>
+      <button class="btn-primary">+ Nueva propiedad</button>
+    </div>
+    <div class="metrics">
+      <div class="metric ag"><div class="metric-label">Disponibles</div><div class="metric-value">8</div><div class="metric-sub">Listas para alquilar</div></div>
+      <div class="metric an"><div class="metric-label">Alquiladas</div><div class="metric-value">4</div><div class="metric-sub">Con contrato activo</div></div>
+      <div class="metric an"><div class="metric-label">Precio promedio</div><div class="metric-value" style="font-family:'DM Mono',monospace;font-size:20px">$362k</div><div class="metric-sub">Disponibles</div></div>
+      <div class="metric ar"><div class="metric-label">Reservadas</div><div class="metric-value" style="color:#C0392B">0</div><div class="metric-sub">En proceso</div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="filter-bar">
+        <input type="text" placeholder="Buscar por dirección o barrio..." />
+        <select><option>Estado</option><option>Disponible</option><option>Alquilada</option><option>Reservada</option></select>
+        <select><option>Tipo</option><option>Departamento</option><option>PH</option><option>Casa</option></select>
+        <select><option>Barrio</option><option>Saavedra</option><option>Villa Urquiza</option><option>Núñez</option></select>
+        <button class="btn-search">Buscar</button>
+      </div>
+      <div class="grid-props">
+        <div class="prop-card"><div class="prop-img"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg><div class="prop-estado"><span class="badge b-green">Disponible</span></div></div><div class="prop-body"><div class="prop-tipo">Departamento · 3 amb.</div><div class="prop-dir">Av. Melián 2450 3°B</div><div class="prop-barrio">Saavedra · 72,5 m²</div><div class="prop-precio">$350.000 <span>/mes</span></div><div class="prop-meta"><span><strong>3</strong> amb.</span><span><strong>1</strong> baño</span><span><strong>72</strong> m²</span></div><div class="prop-actions"><button class="btn-sm gris">Ver detalle</button><button class="btn-sm negro">Agendar visita</button><button class="btn-sm rojo">Asignar contrato</button></div></div></div>
+        <div class="prop-card"><div class="prop-img" style="background:#1a1a1a"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg><div class="prop-estado"><span class="badge b-green">Disponible</span></div></div><div class="prop-body"><div class="prop-tipo">PH · 4 amb.</div><div class="prop-dir">Av. Balbín 4100 PB</div><div class="prop-barrio">Saavedra · 95 m²</div><div class="prop-precio">$480.000 <span>/mes</span></div><div class="prop-meta"><span><strong>4</strong> amb.</span><span><strong>2</strong> baños</span><span><strong>95</strong> m²</span></div><div class="prop-actions"><button class="btn-sm gris">Ver detalle</button><button class="btn-sm negro">Agendar visita</button><button class="btn-sm rojo">Asignar contrato</button></div></div></div>
+        <div class="prop-card"><div class="prop-img" style="background:#222"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg><div class="prop-estado"><span class="badge b-dark">Alquilada</span></div></div><div class="prop-body"><div class="prop-tipo">Departamento · 2 amb.</div><div class="prop-dir">Av. Triunvirato 3200 7°A</div><div class="prop-barrio">Villa Urquiza · 55 m²</div><div class="prop-precio">$270.000 <span>/mes</span></div><div class="prop-meta"><span><strong>2</strong> amb.</span><span><strong>1</strong> baño</span><span><strong>55</strong> m²</span></div><div class="prop-actions"><button class="btn-sm gris">Ver detalle</button><button class="btn-sm negro" onclick="showScreen('contratos', document.querySelector('[onclick*=contratos]'))">Ver contrato</button></div></div></div>
+        <div class="prop-card"><div class="prop-img" style="background:#181818"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg><div class="prop-estado"><span class="badge b-green">Disponible</span></div></div><div class="prop-body"><div class="prop-tipo">Departamento · 2 amb.</div><div class="prop-dir">Av. García del Río 2800 1°A</div><div class="prop-barrio">Saavedra · 48 m²</div><div class="prop-precio">$290.000 <span>/mes</span></div><div class="prop-meta"><span><strong>2</strong> amb.</span><span><strong>1</strong> baño</span><span><strong>48</strong> m²</span></div><div class="prop-actions"><button class="btn-sm gris">Ver detalle</button><button class="btn-sm negro">Agendar visita</button><button class="btn-sm rojo">Asignar contrato</button></div></div></div>
+        <div class="prop-card"><div class="prop-img" style="background:#202020"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg><div class="prop-estado"><span class="badge b-amber">Reservada</span></div></div><div class="prop-body"><div class="prop-tipo">Casa · 5 amb.</div><div class="prop-dir">Zapadores 1200</div><div class="prop-barrio">Saavedra · 140 m²</div><div class="prop-precio">$750.000 <span>/mes</span></div><div class="prop-meta"><span><strong>5</strong> amb.</span><span><strong>3</strong> baños</span><span><strong>140</strong> m²</span></div><div class="prop-actions"><button class="btn-sm gris">Ver detalle</button><button class="btn-sm rojo">Asignar contrato</button></div></div></div>
+        <div class="prop-card"><div class="prop-img" style="background:#191919"><svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg><div class="prop-estado"><span class="badge b-dark">Alquilada</span></div></div><div class="prop-body"><div class="prop-tipo">Departamento · 3 amb.</div><div class="prop-dir">Núñez 3450 4°B</div><div class="prop-barrio">Núñez · 68 m²</div><div class="prop-precio">$410.000 <span>/mes</span></div><div class="prop-meta"><span><strong>3</strong> amb.</span><span><strong>1</strong> baño</span><span><strong>68</strong> m²</span></div><div class="prop-actions"><button class="btn-sm gris">Ver detalle</button><button class="btn-sm negro" onclick="showScreen('contratos', document.querySelector('[onclick*=contratos]'))">Ver contrato</button></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INQUILINOS -->
+  <div class="screen" id="screen-inquilinos">
+    <div class="topbar">
+      <div><div class="topbar-title">Inquilinos</div><div class="topbar-sub">3 registrados · 2 sin contrato activo</div></div>
+      <button class="btn-primary">+ Nuevo inquilino</button>
+    </div>
+    <div class="metrics">
+      <div class="metric an"><div class="metric-label">Total registrados</div><div class="metric-value">3</div><div class="metric-sub">En el sistema</div></div>
+      <div class="metric ag"><div class="metric-label">Scoring alto</div><div class="metric-value">2</div><div class="metric-sub">Puntaje 71–100</div></div>
+      <div class="metric an"><div class="metric-label">Con contrato activo</div><div class="metric-value">1</div><div class="metric-sub">Valentina López</div></div>
+      <div class="metric ar"><div class="metric-label">Sin scoring</div><div class="metric-value">0</div><div class="metric-sub">Todos evaluados</div></div>
+    </div>
+    <div class="grid-side">
+      <div class="card">
+        <div class="filter-bar">
+          <input type="text" placeholder="Buscar por nombre, DNI o email..." />
+          <select><option>Todos los niveles</option><option>Alto</option><option>Medio</option><option>Bajo</option></select>
+          <select><option>Todos</option><option>Con contrato</option><option>Sin contrato</option></select>
+        </div>
+        <table>
+          <thead><tr><th></th><th>Inquilino</th><th>DNI</th><th>Ocupación</th><th>Scoring</th><th>Garantía</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr style="background:#F9F3E3">
+              <td><div style="width:28px;height:28px;border-radius:50%;background:#111;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#C9A84C">VL</div></td>
+              <td><strong>Valentina López</strong><br><span style="font-size:10px;color:#888">valen@gmail.com</span></td>
+              <td style="color:#888;font-family:'DM Mono',monospace">38111222</td>
+              <td style="color:#888">Relación de dependencia</td>
+              <td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:85%"></div></div><span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">85</span></div></td>
+              <td><span class="badge b-green">Sí</span></td>
+              <td><span class="badge b-dark">Con contrato</span></td>
+              <td><button class="btn-sm gris">Ver →</button></td>
+            </tr>
+            <tr>
+              <td><div style="width:28px;height:28px;border-radius:50%;background:#111;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#C9A84C">FR</div></td>
+              <td><strong>Federico Ramos</strong><br><span style="font-size:10px;color:#888">fede.ramos@gmail.com</span></td>
+              <td style="color:#888;font-family:'DM Mono',monospace">35444555</td>
+              <td style="color:#888">Monotributista</td>
+              <td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:62%"></div></div><span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">62</span></div></td>
+              <td><span class="badge b-red">No</span></td>
+              <td><span class="badge b-gray">Sin contrato</span></td>
+              <td><button class="btn-sm gris">Ver →</button></td>
+            </tr>
+            <tr>
+              <td><div style="width:28px;height:28px;border-radius:50%;background:#111;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;color:#C9A84C">CM</div></td>
+              <td><strong>Carolina Méndez</strong><br><span style="font-size:10px;color:#888">caro.mendez@gmail.com</span></td>
+              <td style="color:#888;font-family:'DM Mono',monospace">40222333</td>
+              <td style="color:#888">Relación de dependencia</td>
+              <td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:91%"></div></div><span style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">91</span></div></td>
+              <td><span class="badge b-green">Sí</span></td>
+              <td><span class="badge b-gray">Sin contrato</span></td>
+              <td><button class="btn-sm dorado" onclick="showScreen('contratos', document.querySelector('[onclick*=contratos]'))">Asignar contrato</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:12px;padding-bottom:14px;border-bottom:0.5px solid var(--borde-l);margin-bottom:14px">
+          <div class="detail-avatar">VL</div>
+          <div><div style="font-size:15px;font-weight:500">Valentina López</div><div style="font-size:12px;color:#888;margin-top:2px">Empleada en relación de dependencia</div></div>
+        </div>
+        <div class="scoring-box">
+          <div class="scoring-title">Scoring</div>
+          <div class="scoring-score">85</div>
+          <div class="scoring-level">Nivel alto · Evaluado 10/03/2025</div>
+          <div class="scoring-row"><span>Garantía</span><div class="scoring-track"><div class="scoring-fill" style="width:100%"></div></div><span style="color:#ccc">Sí</span></div>
+          <div class="scoring-row"><span>Recibo</span><div class="scoring-track"><div class="scoring-fill" style="width:100%"></div></div><span style="color:#ccc">Sí</span></div>
+        </div>
+        <div class="section-label">Datos de contacto</div>
+        <div class="field-row"><span class="field-label">DNI</span><span class="field-value" style="font-family:'DM Mono',monospace">38.111.222</span></div>
+        <div class="field-row"><span class="field-label">Email</span><span class="field-value">valen@gmail.com</span></div>
+        <div class="field-row"><span class="field-label">Teléfono</span><span class="field-value" style="font-family:'DM Mono',monospace">11 4444-0001</span></div>
+        <div class="section-label">Contrato activo</div>
+        <div class="field-row"><span class="field-label">Propiedad</span><span class="field-value">Triunvirato 3200 7°A</span></div>
+        <div class="field-row"><span class="field-label">Monto</span><span class="field-value" style="font-family:'DM Mono',monospace">$270.000/mes</span></div>
+        <div class="field-row"><span class="field-label">Vigencia</span><span class="field-value">01/01/25 → 01/01/27</span></div>
+        <button class="btn-primary" style="width:100%;margin-top:14px">Editar scoring</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISITAS -->
+  <div class="screen" id="screen-visitas">
+    <div class="topbar">
+      <div><div class="topbar-title">Visitas</div><div class="topbar-sub">Semana del 7 al 13 de abril · 5 visitas agendadas</div></div>
+      <button class="btn-primary">+ Nueva visita</button>
+    </div>
+    <div class="metrics">
+      <div class="metric an"><div class="metric-label">Esta semana</div><div class="metric-value">5</div><div class="metric-sub">Total agendadas</div></div>
+      <div class="metric ag"><div class="metric-label">Confirmadas</div><div class="metric-value">3</div><div class="metric-sub">Listas para realizar</div></div>
+      <div class="metric ar"><div class="metric-label">Pendientes</div><div class="metric-value" style="color:#C0392B">2</div><div class="metric-sub">Sin confirmar</div></div>
+      <div class="metric an"><div class="metric-label">Realizadas</div><div class="metric-value">12</div><div class="metric-sub">Este mes</div></div>
+    </div>
+    <div class="grid-side-sm">
+      <div class="card">
+        <div class="card-title">Todas las visitas</div>
+        <div class="filter-bar">
+          <input type="text" placeholder="Buscar inquilino o propiedad..." />
+          <select><option>Todos los estados</option><option>Pendiente</option><option>Confirmada</option><option>Realizada</option><option>Cancelada</option></select>
+          <select><option>Esta semana</option><option>Este mes</option><option>Todas</option></select>
+        </div>
+        <table>
+          <thead><tr><th>Fecha y hora</th><th>Inquilino</th><th>Propiedad</th><th>Agente</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Hoy 10:00</strong></td><td>Carolina Méndez</td><td style="color:#888">Melián 2450 3°B</td><td style="color:#888">Lucía F.</td><td><span class="badge b-green">Confirmada</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm negro">Registrar</button></div></td></tr>
+            <tr><td><strong>Hoy 12:30</strong></td><td>Martín Suárez</td><td style="color:#888">Balbín 4100 PH</td><td style="color:#888">Marcos G.</td><td><span class="badge b-amber">Pendiente</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm verde">Confirmar</button><button class="btn-sm rojo">Cancelar</button></div></td></tr>
+            <tr><td><strong>Hoy 17:00</strong></td><td>Laura Ríos</td><td style="color:#888">Melián 2450 3°B</td><td style="color:#888">Lucía F.</td><td><span class="badge b-green">Confirmada</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm negro">Registrar</button></div></td></tr>
+            <tr><td>Mié 09/04 11:00</td><td>Roberto Paz</td><td style="color:#888">García del Río 2800</td><td style="color:#888">Lucía F.</td><td><span class="badge b-amber">Pendiente</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm verde">Confirmar</button><button class="btn-sm rojo">Cancelar</button></div></td></tr>
+            <tr><td>Jue 10/04 15:00</td><td>Ana Gómez</td><td style="color:#888">Zapadores 1200</td><td style="color:#888">Marcos G.</td><td><span class="badge b-green">Confirmada</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm negro">Registrar</button></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">Agenda de hoy</div>
+        <div class="agenda-dia-label">Lunes 7 de abril</div>
+        <div class="agenda-item confirmada"><div class="agenda-hora">10:00</div><div class="agenda-info"><div class="agenda-nombre">Carolina Méndez</div><div class="agenda-dir">Melián 2450 3°B · Saavedra</div></div><div class="agenda-acciones"><span class="badge b-green">Confirmada</span><button class="btn-sm negro" style="margin-top:4px">Registrar</button></div></div>
+        <div class="agenda-item pendiente"><div class="agenda-hora">12:30</div><div class="agenda-info"><div class="agenda-nombre">Martín Suárez</div><div class="agenda-dir">Balbín 4100 PH · Saavedra</div></div><div class="agenda-acciones"><span class="badge b-amber">Pendiente</span><button class="btn-sm verde" style="margin-top:4px">Confirmar</button></div></div>
+        <div class="agenda-item confirmada"><div class="agenda-hora">17:00</div><div class="agenda-info"><div class="agenda-nombre">Laura Ríos</div><div class="agenda-dir">Melián 2450 3°B · Saavedra</div></div><div class="agenda-acciones"><span class="badge b-green">Confirmada</span><button class="btn-sm negro" style="margin-top:4px">Registrar</button></div></div>
+        <div class="agenda-dia-label">Miércoles 9 de abril</div>
+        <div class="agenda-item pendiente"><div class="agenda-hora">11:00</div><div class="agenda-info"><div class="agenda-nombre">Roberto Paz</div><div class="agenda-dir">García del Río 2800 · Saavedra</div></div><div class="agenda-acciones"><span class="badge b-amber">Pendiente</span><button class="btn-sm verde" style="margin-top:4px">Confirmar</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTRATOS -->
+  <div class="screen" id="screen-contratos">
+    <div class="topbar">
+      <div><div class="topbar-title">Contratos</div><div class="topbar-sub">4 contratos activos · 1 vence pronto</div></div>
+      <button class="btn-primary">+ Nuevo contrato</button>
+    </div>
+    <div class="metrics">
+      <div class="metric an"><div class="metric-label">Activos</div><div class="metric-value">4</div><div class="metric-sub">En vigencia</div></div>
+      <div class="metric ar"><div class="metric-label">Vencen en 30 días</div><div class="metric-value" style="color:#C0392B">1</div><div class="metric-sub">Requiere renovación</div></div>
+      <div class="metric an"><div class="metric-label">Rescindidos</div><div class="metric-value">2</div><div class="metric-sub">Este año</div></div>
+      <div class="metric ag"><div class="metric-label">Facturación mensual</div><div class="metric-value" style="font-family:'DM Mono',monospace;font-size:20px">$1,1M</div><div class="metric-sub">Suma de cuotas activas</div></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="filter-bar">
+        <input type="text" placeholder="Buscar por inquilino o propiedad..." />
+        <select><option>Todos los estados</option><option>Activo</option><option>Vence pronto</option><option>Rescindido</option></select>
+        <select><option>Todos los agentes</option><option>Lucía Fernández</option><option>Marcos Giménez</option></select>
+        <button class="btn-search">Buscar</button>
+      </div>
+      <table>
+        <thead><tr><th>#</th><th>Inquilino</th><th>Propiedad</th><th>Inicio</th><th>Fin</th><th>Monto</th><th>Progreso</th><th>Estado</th><th></th></tr></thead>
+        <tbody>
+          <tr><td style="color:#aaa;font-family:'DM Mono',monospace">#001</td><td><strong>Valentina López</strong></td><td style="color:#888">Triunvirato 3200 7°A</td><td style="color:#888">01/01/2025</td><td style="color:#888">01/01/2027</td><td style="font-family:'DM Mono',monospace">$270.000</td><td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:18%;background:#C9A84C"></div></div><span style="font-size:10px;color:#888">18%</span></div></td><td><span class="badge b-green">Activo</span></td><td><button class="btn-sm gris">Ver →</button></td></tr>
+          <tr><td style="color:#aaa;font-family:'DM Mono',monospace">#002</td><td><strong>Jorge Méndez</strong></td><td style="color:#888">Melián 1800 2°B</td><td style="color:#888">15/05/2024</td><td style="color:#888">15/05/2026</td><td style="font-family:'DM Mono',monospace">$320.000</td><td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:85%;background:#C0392B"></div></div><span style="font-size:10px;color:#C0392B">85%</span></div></td><td><span class="badge b-amber">Vence pronto</span></td><td><button class="btn-sm gris">Ver →</button></td></tr>
+          <tr><td style="color:#aaa;font-family:'DM Mono',monospace">#003</td><td><strong>Ana Gómez</strong></td><td style="color:#888">Balbín 4100 PB</td><td style="color:#888">01/09/2024</td><td style="color:#888">01/09/2026</td><td style="font-family:'DM Mono',monospace">$480.000</td><td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:55%;background:#C9A84C"></div></div><span style="font-size:10px;color:#888">55%</span></div></td><td><span class="badge b-green">Activo</span></td><td><button class="btn-sm gris">Ver →</button></td></tr>
+          <tr><td style="color:#aaa;font-family:'DM Mono',monospace">#004</td><td><strong>Roberto Paz</strong></td><td style="color:#888">Triunvirato 1500 4°A</td><td style="color:#888">01/02/2025</td><td style="color:#888">01/02/2027</td><td style="font-family:'DM Mono',monospace">$350.000</td><td><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:10%;background:#C9A84C"></div></div><span style="font-size:10px;color:#888">10%</span></div></td><td><span class="badge b-green">Activo</span></td><td><button class="btn-sm gris">Ver →</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:14px;border-bottom:0.5px solid var(--borde-l)">
+        <div><div style="font-size:15px;font-weight:500">Contrato #001 — Valentina López</div><div style="font-size:12px;color:#888;margin-top:3px">Av. Triunvirato 3200 7°A · Villa Urquiza · Agente: Lucía Fernández</div></div>
+        <div style="display:flex;gap:8px;align-items:center"><span class="badge b-green">Activo</span><button class="btn-sm dorado" onclick="showScreen('pagos', document.querySelector('[onclick*=pagos]'))">Registrar pago</button></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;margin-bottom:16px">
+        <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px">Fecha inicio</div><div style="font-size:13px;font-weight:500">01/01/2025</div></div>
+        <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px">Fecha fin</div><div style="font-size:13px;font-weight:500">01/01/2027</div></div>
+        <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px">Monto mensual</div><div style="font-size:13px;font-weight:500;font-family:'DM Mono',monospace">$270.000</div></div>
+        <div><div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px">Scoring inquilino</div><div style="font-size:13px;font-weight:500;color:#2E7D32">85 — Alto</div></div>
+      </div>
+      <div style="font-size:11px;font-weight:500;color:#aaa;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Últimos pagos</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--borde-l);font-size:12px"><span style="color:#888">Enero 2025</span><span style="font-family:'DM Mono',monospace">$270.000</span><span style="color:#888">Pagado 08/01</span><span class="badge b-green">Pagado</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--borde-l);font-size:12px"><span style="color:#888">Febrero 2025</span><span style="font-family:'DM Mono',monospace">$270.000</span><span style="color:#888">Pagado 11/02</span><span class="badge b-green">Pagado</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:12px"><span style="color:#888">Marzo 2025</span><span style="font-family:'DM Mono',monospace">$270.000</span><span style="color:#C0392B">Vencido 10/03</span><span class="badge b-red">Vencido</span></div>
+    </div>
+  </div>
+
+  <!-- PAGOS -->
+  <div class="screen" id="screen-pagos">
+    <div class="topbar">
+      <div><div class="topbar-title">Pagos</div><div class="topbar-sub">Abril 2026 · 3 pagos vencidos · $810.000 pendiente</div></div>
+      <button class="btn-primary">+ Registrar pago</button>
+    </div>
+    <div class="metrics">
+      <div class="metric an"><div class="metric-label">Cobrado este mes</div><div class="metric-value" style="font-family:'DM Mono',monospace">$540k</div><div class="metric-sub">2 pagos registrados</div></div>
+      <div class="metric ar"><div class="metric-label">Vencidos</div><div class="metric-value" style="color:#C0392B">3</div><div class="metric-sub danger">$810.000 pendiente</div></div>
+      <div class="metric ag"><div class="metric-label">Por vencer</div><div class="metric-value">5</div><div class="metric-sub">Próximos 30 días</div></div>
+      <div class="metric an"><div class="metric-label">Facturación mensual</div><div class="metric-value" style="font-family:'DM Mono',monospace;font-size:20px">$1,1M</div><div class="metric-sub">Total contratos activos</div></div>
+    </div>
+    <div class="grid-side">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">Pagos vencidos <span style="font-size:11px;color:#C0392B;font-weight:400">3 sin cobrar</span></div>
+          <div class="alerta-box"><div class="alerta-titulo">Atención — pagos críticos</div><div class="alerta-texto">Valentina López y Jorge Méndez superan los 30 días de atraso. Se recomienda iniciar gestión de cobranza.</div></div>
+          <table>
+            <thead><tr><th>Inquilino</th><th>Propiedad</th><th>Vencimiento</th><th>Monto</th><th>Atraso</th><th>Alerta</th><th>Acciones</th></tr></thead>
+            <tbody>
+              <tr class="vencido"><td><strong>Valentina López</strong></td><td style="color:#888">Triunvirato 3200</td><td style="color:#888">10/03/2025</td><td style="font-family:'DM Mono',monospace">$270.000</td><td style="color:#C0392B;font-weight:500;font-family:'DM Mono',monospace">394 días</td><td><span class="badge b-red">Crítico</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm dorado">Cobrar</button></div></td></tr>
+              <tr class="vencido"><td><strong>Jorge Méndez</strong></td><td style="color:#888">Melián 1800</td><td style="color:#888">01/03/2025</td><td style="font-family:'DM Mono',monospace">$320.000</td><td style="color:#C0392B;font-weight:500;font-family:'DM Mono',monospace">403 días</td><td><span class="badge b-red">Crítico</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm dorado">Cobrar</button></div></td></tr>
+              <tr class="vencido"><td><strong>Ana Gómez</strong></td><td style="color:#888">Balbín 4100</td><td style="color:#888">15/03/2025</td><td style="font-family:'DM Mono',monospace">$220.000</td><td style="color:#854F0B;font-weight:500;font-family:'DM Mono',monospace">389 días</td><td><span class="badge b-amber">Moderado</span></td><td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm dorado">Cobrar</button></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">Pagos del mes — Abril 2026</div>
+          <table>
+            <thead><tr><th>Inquilino</th><th>Propiedad</th><th>Vencimiento</th><th>Fecha pago</th><th>Monto</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody>
+              <tr><td>Valentina López</td><td style="color:#888">Triunvirato 3200</td><td style="color:#888">10/04/2026</td><td style="color:#888">—</td><td style="font-family:'DM Mono',monospace">$270.000</td><td><span class="badge b-amber">Pendiente</span></td><td><button class="btn-sm dorado">Cobrar</button></td></tr>
+              <tr><td>Roberto Paz</td><td style="color:#888">Triunvirato 1500</td><td style="color:#888">01/04/2026</td><td style="color:#888">31/03/2026</td><td style="font-family:'DM Mono',monospace">$350.000</td><td><span class="badge b-green">Pagado</span></td><td><button class="btn-sm gris">Ver</button></td></tr>
+              <tr><td>Ana Gómez</td><td style="color:#888">Balbín 4100</td><td style="color:#888">01/04/2026</td><td style="color:#888">02/04/2026</td><td style="font-family:'DM Mono',monospace">$480.000</td><td><span class="badge b-green">Pagado</span></td><td><button class="btn-sm gris">Ver</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-title">Resumen del mes</div>
+          <div class="resumen-row"><span style="color:#999">Total a cobrar</span><span style="font-weight:500;font-family:'DM Mono',monospace">$1.100.000</span></div>
+          <div class="resumen-row"><span style="color:#999">Cobrado</span><span style="font-weight:500;color:#2E7D32;font-family:'DM Mono',monospace">$830.000</span></div>
+          <div class="resumen-row"><span style="color:#999">Pendiente</span><span style="font-weight:500;color:#C0392B;font-family:'DM Mono',monospace">$270.000</span></div>
+          <div class="resumen-row"><span style="color:#999">% cobrado</span><span style="font-weight:500;font-family:'DM Mono',monospace">75%</span></div>
+          <div class="progress-track"><div class="progress-fill" style="width:75%"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Próximos vencimientos</div>
+          <div class="resumen-row"><div><div style="font-size:12px;font-weight:500">Jorge Méndez</div><div style="font-size:10px;color:#888">Melián 1800 · 15/04</div></div><div style="text-align:right"><div style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">$320.000</div><button class="btn-sm negro" style="margin-top:4px">Avisar</button></div></div>
+          <div class="resumen-row"><div><div style="font-size:12px;font-weight:500">Núñez 3450</div><div style="font-size:10px;color:#888">Inquilino C · 20/04</div></div><div style="text-align:right"><div style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">$410.000</div><button class="btn-sm negro" style="margin-top:4px">Avisar</button></div></div>
+          <div class="resumen-row"><div><div style="font-size:12px;font-weight:500">Valentina López</div><div style="font-size:10px;color:#888">Triunvirato 3200 · 10/05</div></div><div style="text-align:right"><div style="font-size:12px;font-weight:500;font-family:'DM Mono',monospace">$270.000</div><button class="btn-sm negro" style="margin-top:4px">Avisar</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showScreen(name, navEl) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  if (navEl) navEl.classList.add('active');
+  document.querySelector('.main').scrollTop = 0;
+}
+</script>
+</body>
+</html>
