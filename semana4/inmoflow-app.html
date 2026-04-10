@@ -574,7 +574,7 @@ async function cargarInquilinos() {
   if (!tbody) return;
 
   tbody.innerHTML = data.map(i => {
-    const s = i.scoring_inquilino?.[0];
+    const s = Array.isArray(i.scoring_inquilino) ? i.scoring_inquilino[0] : i.scoring_inquilino;
     const puntaje = s ? s.puntaje : '—';
     const nivel = s ? s.nivel : 'sin evaluar';
     const garantia = s ? (s.tiene_garantia ? '<span class="badge b-green">Sí</span>' : '<span class="badge b-red">No</span>') : '—';
