@@ -261,7 +261,7 @@ tr.vencido td { background: #FFF8F7; }
   <div class="screen" id="screen-propiedades">
     <div class="topbar">
       <div><div class="topbar-title">Propiedades</div><div class="topbar-sub">12 propiedades · 8 disponibles · 4 alquiladas</div></div>
-      <button class="btn-primary">+ Nueva propiedad</button>
+      <button class="btn-primary" onclick="abrirModal()">+ Nueva propiedad</button>
     </div>
     <div class="metrics">
       <div class="metric ag"><div class="metric-label">Disponibles</div><div class="metric-value">8</div><div class="metric-sub">Listas para alquilar</div></div>
@@ -527,6 +527,7 @@ function showScreen(name, navEl) {
   if (name === 'propiedades') cargarPropiedades();
   if (name === 'inquilinos') cargarInquilinos();
   if (name === 'pagos') cargarPagosVencidos();
+  if (name === 'visitas') cargarVisitas();
 }
 
 window.onload = () => cargarPropiedades();
@@ -550,8 +551,11 @@ async function cargarPropiedades() {
     
     return `
       <div class="prop-card">
-        <div class="prop-img" style="background:#1a1a1a">
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg>
+       <div class="prop-img" style="background:#1a1a1a;${p.foto_url ? 'padding:0' : ''}">
+  ${p.foto_url 
+    ? `<img src="${p.foto_url}" style="width:100%;height:100%;object-fit:cover">`
+    : `<svg width="40" height="40" viewBox="0 0 40 40" fill="none"><path d="M20 4L4 16v20h10v-8h12v8h10V16L20 4z" stroke="white" stroke-width="2"/></svg>`
+  }
           <div class="prop-estado">${estadoBadge}</div>
         </div>
         <div class="prop-body">
@@ -616,10 +620,322 @@ async function cargarPagosVencidos() {
         <td style="font-family:'DM Mono',monospace">$${Number(p.monto).toLocaleString('es-AR')}</td>
         <td style="color:#C0392B;font-weight:500">${dias} días</td>
         <td>${alerta}</td>
-        <td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm dorado">Cobrar</button></div></td>
+        <td><div class="acciones"><button class="btn-sm gris">Ver</button><button class="btn-sm dorado" onclick="cobrarPago(${p.id_pago})">Cobrar</button></div></td>
       </tr>`;
   }).join('');
 }
+async function confirmarVisita(id) {
+  const { error } = await sb
+    .from('visita')
+    .update({ estado: 'confirmada' })
+    .eq('id_visita', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  alert('Visita confirmada.');
+  cargarVisitas();
+}
+
+async function cancelarVisita(id) {
+  const { error } = await sb
+    .from('visita')
+    .update({ estado: 'cancelada' })
+    .eq('id_visita', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  alert('Visita cancelada.');
+  cargarVisitas();
+}
+
+async function cargarVisitas() {
+  const { data, error } = await sb
+    .from('visita')
+    .select('*, propiedad(direccion), inquilino(nombre, apellido)')
+    .order('fecha_hora', { ascending: true });
+  if (error) { console.error(error); return; }
+
+  const tbody = document.querySelector('#screen-visitas table tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = data.map(v => {
+    const fecha = new Date(v.fecha_hora);
+    const fechaStr = fecha.toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric' });
+    const horaStr = fecha.toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    const nombre = `${v.inquilino.nombre} ${v.inquilino.apellido}`;
+    const dir = v.propiedad.direccion;
+
+    const estadoBadge = v.estado === 'confirmada' ? '<span class="badge b-green">Confirmada</span>' :
+                        v.estado === 'pendiente'  ? '<span class="badge b-amber">Pendiente</span>' :
+                        v.estado === 'cancelada'  ? '<span class="badge b-gray">Cancelada</span>' :
+                                                    '<span class="badge b-dark">Realizada</span>';
+
+    const botones = v.estado === 'pendiente' ? `
+      <button class="btn-sm gris">Ver</button>
+      <button class="btn-sm verde" onclick="confirmarVisita(${v.id_visita})">Confirmar</button>
+      <button class="btn-sm rojo" onclick="cancelarVisita(${v.id_visita})">Cancelar</button>` :
+      v.estado === 'confirmada' ? `
+      <button class="btn-sm gris">Ver</button>
+      <button class="btn-sm negro">Registrar</button>` :
+      `<button class="btn-sm gris">Ver</button>`;
+
+    return `
+      <tr>
+        <td><strong>${fechaStr} ${horaStr}</strong></td>
+        <td>${nombre}</td>
+        <td style="color:#888">${dir}</td>
+        <td style="color:#888">Lucía F.</td>
+        <td>${estadoBadge}</td>
+        <td><div class="acciones">${botones}</div></td>
+      </tr>`;
+  }).join('');
+
+  const agenda = document.querySelector('#screen-visitas .card:last-child');
+  if (agenda) {
+    const hoy = data.filter(v => {
+      const d = new Date(v.fecha_hora);
+      const now = new Date();
+      return d.toDateString() === now.toDateString();
+    });
+    const proximosDias = data.filter(v => {
+      const d = new Date(v.fecha_hora);
+      const now = new Date();
+      return d > now && d.toDateString() !== now.toDateString();
+    }).slice(0, 2);
+
+    const renderItem = v => {
+      const h = new Date(v.fecha_hora).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+      const nombre = `${v.inquilino.nombre} ${v.inquilino.apellido}`;
+      const cls = v.estado === 'confirmada' ? 'confirmada' : 'pendiente';
+      const badge = v.estado === 'confirmada' ? '<span class="badge b-green">Confirmada</span>' : '<span class="badge b-amber">Pendiente</span>';
+      const btn = v.estado === 'pendiente' ?
+        `<button class="btn-sm verde" style="margin-top:4px" onclick="confirmarVisita(${v.id_visita})">Confirmar</button>` :
+        `<button class="btn-sm negro" style="margin-top:4px">Registrar</button>`;
+      return `<div class="agenda-item ${cls}">
+        <div class="agenda-hora">${h}</div>
+        <div class="agenda-info"><div class="agenda-nombre">${nombre}</div><div class="agenda-dir">${v.propiedad.direccion}</div></div>
+        <div class="agenda-acciones">${badge}${btn}</div>
+      </div>`;
+    };
+
+    agenda.innerHTML = `<div class="card-title">Agenda de hoy</div>
+      <div class="agenda-dia-label">Hoy</div>
+      ${hoy.length ? hoy.map(renderItem).join('') : '<p style="font-size:12px;color:#888">Sin visitas hoy</p>'}
+      ${proximosDias.length ? `<div class="agenda-dia-label">Próximas</div>${proximosDias.map(renderItem).join('')}` : ''}`;
+  }
+}
+
+async function cobrarPago(id) {
+  const hoy = new Date().toISOString().split('T')[0];
+  const { error } = await sb
+    .from('pago')
+    .update({ fecha_pago: hoy, estado: 'pagado', metodo_pago: 'transferencia' })
+    .eq('id_pago', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  alert('Pago registrado como cobrado.');
+  cargarPagosVencidos();
+}
+function abrirModal() {
+  const m = document.getElementById('modal-propiedad');
+  m.style.display = 'flex';
+  document.getElementById('f-foto').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('foto-img').src = e.target.result;
+      document.getElementById('foto-preview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function cerrarModal() {
+  const m = document.getElementById('modal-propiedad');
+  m.style.display = 'none';
+  ['f-direccion','f-barrio','f-ambientes','f-superficie','f-precio','f-piso','f-unidad'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+}
+
+async function guardarPropiedad() {
+  const calleNumero = document.getElementById('f-direccion').value.trim();
+  const piso = document.getElementById('f-piso').value.trim() || null;
+  const unidad = document.getElementById('f-unidad').value.trim() || null;
+  const partes = [calleNumero, piso, unidad].filter(Boolean);
+  const direccion = partes.join(' ') + (piso || unidad ? (piso ? '°' : '') : '');
+  const barrio = document.getElementById('f-barrio').value.trim();
+  const tipo = document.getElementById('f-tipo').value;
+  const ambientes = parseInt(document.getElementById('f-ambientes').value);
+  const superficie = parseFloat(document.getElementById('f-superficie').value);
+  const precio = parseFloat(document.getElementById('f-precio').value);
+  const fotoFile = document.getElementById('f-foto').files[0];
+
+  if (!direccion || !barrio || !ambientes || !precio) {
+    alert('Completá todos los campos obligatorios.');
+    return;
+  }
+
+  const btnGuardar = document.querySelector('#modal-propiedad button:last-child');
+  btnGuardar.textContent = 'Validando ubicación...';
+  btnGuardar.disabled = true;
+
+  try {
+    const query = encodeURIComponent(`${direccion}, Buenos Aires, Argentina`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1&countrycodes=ar`);
+    const geo = await res.json();
+
+    if (!geo.length) {
+      alert('No se pudo encontrar la dirección. Verificá que sea correcta.');
+      btnGuardar.textContent = 'Guardar propiedad';
+      btnGuardar.disabled = false;
+      return;
+    }
+
+    const lat = parseFloat(geo[0].lat);
+    const lon = parseFloat(geo[0].lon);
+
+    const zonas = [
+      { nombre: 'Saavedra', bounds: { latMin: -34.565, latMax: -34.540, lonMin: -58.490, lonMax: -58.455 } },
+      { nombre: 'Villa Urquiza', bounds: { latMin: -34.580, latMax: -34.555, lonMin: -58.500, lonMax: -58.465 } },
+      { nombre: 'Núñez', bounds: { latMin: -34.545, latMax: -34.525, lonMin: -58.470, lonMax: -58.440 } },
+    ];
+
+    const zonaValida = zonas.find(z =>
+      lat >= z.bounds.latMin && lat <= z.bounds.latMax &&
+      lon >= z.bounds.lonMin && lon <= z.bounds.lonMax
+    );
+
+    if (!zonaValida) {
+      alert(`⚠️ Dirección fuera de zona operativa.\n\nCoordenadas detectadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}\n\nLa inmobiliaria solo opera en Saavedra, Villa Urquiza y Núñez.\n\nAbriendo ubicación en el mapa...`);
+      window.open(`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}&zoom=15`, '_blank');
+      btnGuardar.textContent = 'Guardar propiedad';
+      btnGuardar.disabled = false;
+      return;
+    }
+
+    let foto_url = null;
+    if (fotoFile) {
+      const ext = fotoFile.name.split('.').pop();
+      const fileName = `prop_${Date.now()}.${ext}`;
+      const { error: uploadError } = await sb.storage
+        .from('propiedades')
+        .upload(fileName, fotoFile, { contentType: fotoFile.type });
+      if (uploadError) {
+        alert('Error subiendo foto: ' + uploadError.message);
+        btnGuardar.textContent = 'Guardar propiedad';
+        btnGuardar.disabled = false;
+        return;
+      }
+      const { data: urlData } = sb.storage.from('propiedades').getPublicUrl(fileName);
+      foto_url = urlData.publicUrl;
+    }
+    
+
+    if (zonaValida.nombre.toLowerCase() !== barrio.toLowerCase().trim()) {
+  btnGuardar.textContent = 'Guardar propiedad';
+  btnGuardar.disabled = false;
+  
+  document.getElementById('modal-barrio-msg').innerHTML = 
+    `El barrio ingresado es <strong>${barrio}</strong> pero la dirección corresponde a <strong>${zonaValida.nombre}</strong> según el mapa.<br><br>¿Querés guardar en ${zonaValida.nombre}?`;
+  document.getElementById('modal-barrio').style.display = 'flex';
+  
+  document.getElementById('btn-barrio-si').onclick = async () => {
+    document.getElementById('modal-barrio').style.display = 'none';
+    await insertarPropiedad(direccion, zonaValida.nombre, tipo, ambientes, superficie, precio, foto_url);
+  };
+  document.getElementById('btn-barrio-no').onclick = () => {
+    document.getElementById('modal-barrio').style.display = 'none';
+  };
+  return;
+}
+
+await insertarPropiedad(calleNumero, piso, unidad, zonaValida.nombre, tipo, ambientes, superficie, precio, foto_url);
+      } catch (err) {
+    alert('Error de conexión: ' + err.message);
+  } finally {
+    btnGuardar.textContent = 'Guardar propiedad';
+    btnGuardar.disabled = false;
+  }
+}
+
+    
+async function insertarPropiedad(calleNumero, piso, unidad, barrio, tipo, ambientes, superficie, precio, foto_url) {
+  const { error } = await sb.from('propiedad').insert({
+    direccion: calleNumero, piso, unidad, barrio, tipo,
+    ambientes, superficie_m2: superficie,
+    precio_alquiler: precio,
+    estado: 'disponible',
+    id_agente: 1,
+    foto_url
+  });
+  if (error) {
+  if (error.code === '23505') {
+    const detalle = [piso ? `piso ${piso}` : null, unidad ? `unidad ${unidad}` : null].filter(Boolean).join(', ');
+    alert(`⚠️ Ya existe una propiedad registrada en esa dirección${detalle ? ` (${detalle})` : ''}.\n\nVerificá el piso y la unidad.`);
+  } else {
+    alert('Error: ' + error.message);
+  }
+  return;
+}
+  alert(`✓ Propiedad guardada en ${barrio}.`);
+  cerrarModal();
+  cargarPropiedades();
+  showScreen('propiedades', document.querySelector('[onclick*=propiedades]'));
+}
 </script>
+<div id="modal-propiedad" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:12px;padding:28px;width:480px;max-width:90%;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div style="font-size:16px;font-weight:500;color:#111">Nueva propiedad</div>
+      <button onclick="cerrarModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888">×</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="grid-column:1/-1">
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Calle y número</label>
+        <input id="f-direccion" type="text" placeholder="Av. Melián 2450" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Piso <span style="color:#bbb;font-weight:400">(opcional)</span></label>
+        <input id="f-piso" type="text" placeholder="3" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Unidad <span style="color:#bbb;font-weight:400">(opcional)</span></label>
+        <input id="f-unidad" type="text" placeholder="B" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div style="grid-column:1/-1">
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Barrio</label>
+        <input id="f-barrio" type="text" placeholder="Saavedra" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Tipo</label>
+        <select id="f-tipo" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+          <option value="departamento">Departamento</option>
+          <option value="PH">PH</option>
+          <option value="casa">Casa</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Ambientes</label>
+        <input id="f-ambientes" type="number" min="1" max="10" placeholder="3" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Superficie (m²)</label>
+        <input id="f-superficie" type="number" placeholder="72.5" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div>
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Precio alquiler</label>
+        <input id="f-precio" type="number" placeholder="350000" style="width:100%;font-size:13px;padding:8px 10px;border:0.5px solid #E8E8E8;border-radius:6px;font-family:'DM Sans',sans-serif">
+      </div>
+      <div style="grid-column:1/-1">
+        <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px">Foto de la propiedad</label>
+        <input id="f-foto" type="file" accept="image/*" style="width:100%;font-size:12px;padding:6px 0;color:#888">
+        <div id="foto-preview" style="margin-top:8px;display:none">
+          <img id="foto-img" style="width:100%;height:140px;object-fit:cover;border-radius:6px;border:0.5px solid #E8E8E8">
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+      <button onclick="cerrarModal()" style="font-size:13px;padding:8px 16px;border:0.5px solid #E8E8E8;border-radius:6px;background:#fff;cursor:pointer;font-family:'DM Sans',sans-serif">Cancelar</button>
+      <button onclick="guardarPropiedad()" style="font-size:13px;padding:8px 16px;border:none;border-radius:6px;background:#C0392B;color:#fff;cursor:pointer;font-weight:500;font-family:'DM Sans',sans-serif">Guardar propiedad</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
